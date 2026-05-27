@@ -1,19 +1,87 @@
-A basketball analytics engine that applies Wall Street trading strategies to player performance prediction. Think of players as stocks—their game-by-game stats become ticker symbols for algorithmic evaluation.
+# NBA Trade Simulator
 
-Core Analytics Tools
-Moving Averages (SMA/EMA) – Smooths statistical noise to reveal true performance trends. EMA reacts faster to recent breakout games, just like tracking momentum in stock prices.
+This project simulates NBA trade deadline decisions. It tries to value players, classify teams as buyers or sellers, build trade packages, and reject trades that fail simplified CBA salary matching rules.
 
-Relative Strength Index (RSI) – Detects unsustainable hot streaks (>70) or buy-low slumps (<30). If a player's on fire, expect regression. If they're cold, expect a bounce back.
+## Main Flow
 
-MACD (Momentum) – Compares fast vs. slow averages to measure whether a player is accelerating or cooling off. Positive MACD = pressing the gas.
+`run_simulation.py` loads live NBA data when `nba_api` works. If that import or fetch fails, it uses the included mock league so the simulator can still run locally.
 
-Bollinger Bands – Identifies true breakouts when stats exceed statistical boundaries. Like bowling with bumpers—if the ball jumps over, something fundamental changed.
+The engine then:
 
-How It Works
-AI General Managers don't just check season averages—they evaluate:
+1. Assigns each team a strategy from its win percentage.
+2. Values every player with a stats and age based formula.
+3. Randomly samples buyer and seller pairs.
+4. Builds a salary matching package from the buyer.
+5. Adds a draft pick if the value gap is large enough.
+6. Checks CBA legality.
+7. Keeps trades where both teams have positive utility.
 
-Momentum signals (MACD)
+## Player Value Math
 
-Sustainability metrics (RSI)
+The value model starts with an efficiency estimate.
 
-Breakout detection (Bollinger Bands)
+```text
+marginal_efficiency = max(efficiency - replacement_level, 0)
+base_value = marginal_efficiency * dollars_per_efficiency_point
+```
+
+It then creates a fake 30 game performance log around that base number. The quant indicators are calculated from that log:
+
+- SMA and EMA smooth recent games.
+- RSI checks if a player is probably running too hot or too cold.
+- MACD checks short term momentum against longer trend.
+- Bollinger Bands check whether the latest value is outside the normal range.
+
+The final value is adjusted by the quant signals and age.
+
+```text
+value = quant_adjusted_base * age_multiplier + 2,000,000
+```
+
+Young players get a larger multiplier. Older players get a discount. Values are capped between 2 million and 65 million.
+
+## Team Strategy
+
+Teams are assigned simple modes:
+
+```text
+win_pct > 0.45  -> BUYER
+win_pct < 0.35  -> SELLER
+otherwise       -> HOLD
+```
+
+## Trade Utility
+
+Buyer utility favors current player value.
+
+```text
+buyer_utility = (value_in - value_out) * 1.5
+              + (future_value_in - future_value_out) * 0.2
+```
+
+Seller utility favors picks and salary savings.
+
+```text
+seller_utility = (future_value_in - future_value_out) * 1.5
+               - salary_change * 0.1
+```
+
+A trade is only returned if both utilities are positive.
+
+## Salary Matching
+
+The CBA check is simplified:
+
+- Second apron teams cannot aggregate multiple outgoing players.
+- Second apron teams cannot take back more salary than they send.
+- First apron and tax teams use a 110 percent plus 100k limit.
+- Other teams use a 125 percent plus 250k limit.
+- Future first round picks cannot be consecutive.
+
+## Running
+
+```bash
+python run_simulation.py
+```
+
+The fallback mock data path only needs the local Python source plus the numeric packages used by the value model.

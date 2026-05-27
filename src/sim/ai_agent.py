@@ -1,32 +1,16 @@
 import random
 
 class AITradeEvaluator:
-    """
-    An AI Agent representing an intelligent General Manager / Analyst.
-    In a full production environment, this agent would ping an LLM (like GPT-4 or Claude)
-    to generate natural language evaluations of trades.
-    For this simulation, it uses a heuristic rule-based "AI" to assign grades and provide
-    persona-driven rationale for the proposed trades.
-    """
-    
     def __init__(self):
         self.personas = ["Aggressive Buyer", "Cautious Rebuilder", "Analytics Nerd"]
-        
+
     def evaluate_trade(self, team_a_name: str, team_a_strategy: str, team_a_received_value: float,
                        team_b_name: str, team_b_strategy: str, team_b_received_value: float) -> dict:
-        """
-        The AI Agent evaluates the trade based on the strategies and value exchanged.
-        Returns a dictionary with 'grade_a', 'grade_b', and an 'ai_analysis' string.
-        """
-        
-        # Calculate relative value (1.0 means perfectly even)
-        # Avoid division by zero
         val_a = max(team_a_received_value, 0.1)
         val_b = max(team_b_received_value, 0.1)
-        
+
         ratio = val_a / val_b
-        
-        # Determine Grades
+
         if ratio > 1.2:
             grade_a = "A"
             grade_b = "C-"

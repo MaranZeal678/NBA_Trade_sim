@@ -17,7 +17,6 @@ class LiveDataLoader:
         return teams.get_teams()
         
     def _fetch_standings(self) -> Dict[str, Dict[str, int]]:
-        """Returns map of TeamID -> {'w': int, 'l': int}"""
         print("Fetching Live Standings...")
         try:
             standings = leaguestandingsv3.LeagueStandingsV3(season=self.season)
@@ -32,7 +31,6 @@ class LiveDataLoader:
             return {}
 
     def _fetch_stats(self) -> Dict[str, Dict[str, float]]:
-        """Returns map of PlayerID -> {'bpm': float, 'ws': float, 'ppg': float, ...}"""
         print("Fetching League Player Stats...")
         try:
             stats = leaguedashplayerstats.LeagueDashPlayerStats(season=self.season)
@@ -41,16 +39,12 @@ class LiveDataLoader:
             for row in data:
                 pid = str(row['PLAYER_ID'])
                 gp = row['GP'] if row['GP'] > 0 else 1
-                
-                # Simple Efficiency Calculation
-                # (PTS + REB + AST + STL + BLK - Missed FG - Missed FT - TO) / GP
+
                 eff = (row['PTS'] + row['REB'] + row['AST'] + row['STL'] + row['BLK'] 
                        - (row['FGA'] - row['FGM']) 
                        - (row['FTA'] - row['FTM']) 
                        - row['TOV']) / gp
-                
-                # Normalize 'BPM' proxy using Efficiency
-                # Avg Eff is approx 15. Scale to -5 to +10 range roughly.
+
                 bpm_proxy = (eff - 10) / 2.0 
                 
                 res[pid] = {
@@ -59,7 +53,7 @@ class LiveDataLoader:
                     'apg': row['AST'] / gp,
                     'eff': eff,
                     'bpm': bpm_proxy,
-                    'ws': row['NBA_FANTASY_PTS'] / 100.0 # Rough proxy
+                    'ws': row['NBA_FANTASY_PTS'] / 100.0
                 }
             return res
         except Exception as e:
@@ -67,19 +61,17 @@ class LiveDataLoader:
             return {}
 
     def get_roster(self, team_id: int) -> List[Dict]:
-        """Fetches roster for a team with simple caching."""
         cache_path = f"{self.cache_dir}/roster_{team_id}.json"
         
         if os.path.exists(cache_path):
             with open(cache_path, 'r') as f:
                 return json.load(f)
-                
-        # Fetch from API
+
         print(f"Fetching roster for Team {team_id}...")
         try:
             roster = commonteamroster.CommonTeamRoster(team_id=team_id, season=self.season)
             data = roster.get_normalized_dict()['CommonTeamRoster']
-            time.sleep(0.600) # Rate limit respect
+            time.sleep(0.600)
             
             with open(cache_path, 'w') as f:
                 json.dump(data, f)
@@ -89,10 +81,6 @@ class LiveDataLoader:
             return []
 
     def estimate_contract(self, player_name: str, age: int, stats: Dict[str, float]) -> Contract:
-        """
-        Estimates salary based on Performance (PPG) and Age.
-        """
-        # 1. Hardcoded Superstars (to be safe)
         superstars = {
             "Stephen Curry": 55_000_000, "Joel Embiid": 51_000_000, "Nikola Jokic": 51_000_000,
             "Bradley Beal": 50_000_000, "Kevin Durant": 49_000_000, "Devin Booker": 49_000_000,
@@ -106,25 +94,23 @@ class LiveDataLoader:
         salary = superstars.get(player_name)
         
         if not salary:
-            # 2. Performance Heuristic
             ppg = stats.get('ppg', 0)
             
             if ppg > 22.0: 
-                salary = 35_000_000 # Max Tier
+                salary = 35_000_000
             elif ppg > 18.0:
-                salary = 25_000_000 # High Starter
+                salary = 25_000_000
             elif ppg > 14.0:
-                salary = 18_000_000 # Solid Starter
+                salary = 18_000_000
             elif ppg > 10.0:
-                salary = 12_000_000 # Rotation
+                salary = 12_000_000
             elif ppg > 6.0:
-                salary = 6_000_000 # Bench
+                salary = 6_000_000
             else:
-                salary = 2_500_000 # Min
+                salary = 2_500_000
                 
-            # Rookie Scale Adjustment
             if age < 23 and salary > 10_000_000:
-                salary = 10_000_000 # Cap rookie deals roughly
+                salary = 10_000_000
             
         contract_years = []
         for i in range(4):
@@ -146,30 +132,23 @@ class LiveDataLoader:
             tid_str = str(tid_int)
             abbr = t['abbreviation']
             name = t['nickname']
-            
-            # Create Team Object
+
             record = standings_map.get(tid_str, {'w': 0, 'l': 0})
             new_team = Team(id=abbr, name=name, roster=[], picks=[], record=record)
-            
-            # Add Picks
+
             current_year = 2025
             for y in range(current_year, current_year + 7):
                 new_team.picks.append(DraftPick(y, 1, abbr, abbr))
                 new_team.picks.append(DraftPick(y, 2, abbr, abbr))
-            
-            # Get Roster
             roster_data = self.get_roster(tid_int)
             
             for p_data in roster_data:
                 p_name = p_data['PLAYER']
                 pid = str(p_data['PLAYER_ID'])
                 age = int(float(p_data['AGE'])) if p_data['AGE'] else 25
-                
-                # Get Stats
-                # Default to replacement level
+
                 p_stats = stats_map.get(pid, {'bpm': -2.0, 'ws': 0.1, 'eff': 8.0, 'ppg': 5.0}) 
-                
-                # Create Player Object
+
                 contract = self.estimate_contract(p_name, age, p_stats)
                 
                 player = Player(

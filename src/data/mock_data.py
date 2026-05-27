@@ -3,9 +3,7 @@ import uuid
 from typing import List, Dict, Tuple
 from .schema import Player, Team, Contract, ContractYear, DraftPick
 
-# Extended list of real NBA players for realism
 NAMES = [
-    # Superstars & All-Stars
     "LeBron James", "Stephen Curry", "Kevin Durant", "Giannis Antetokounmpo", "Luka Doncic",
     "Nikola Jokic", "Joel Embiid", "Jayson Tatum", "Shai Gilgeous-Alexander", "Anthony Edwards",
     "Devin Booker", "Jimmy Butler", "Kawhi Leonard", "Paul George", "Damian Lillard",
@@ -16,8 +14,7 @@ NAMES = [
     "Lauri Markkanen", "Dejounte Murray", "Pascal Siakam", "Jamal Murray", "Brandon Ingram",
     "Zion Williamson", "LaMelo Ball", "Darius Garland", "Evan Mobley", "Jaren Jackson Jr.",
     "Desmond Bane", "Alperen Sengun", "Franz Wagner", "Cade Cunningham", "Jalen Williams",
-    
-    # High Level Starters / Vets
+
     "Jrue Holiday", "Derrick White", "Kristaps Porzingis", "Bradley Beal", "Khris Middleton",
     "Brook Lopez", "Myles Turner", "CJ McCollum", "Jerami Grant", "Anfernee Simons",
     "Kyle Kuzma", "Fred VanVleet", "Dillon Brooks", "Deandre Ayton", "Mikal Bridges",
@@ -46,45 +43,34 @@ def generate_random_name():
     return f"{random.choice(FIRST_NAMES)} {random.choice(LAST_NAMES)}"
 
 def generate_mock_salary(tier: str) -> List[float]:
-    # Returns 4 years of salary
     base = 0
     if tier == 'SUPERMAX': base = 55_000_000
     elif tier == 'MAX': base = 40_000_000
     elif tier == 'STARTER': base = 20_000_000
     elif tier == 'ROTATION': base = 8_000_000
-    else: base = 2_000_000 # Min
-    
-    # 5% raises
+    else: base = 2_000_000
+
     return [base * (1.05 ** i) for i in range(5)]
 
 def create_mock_league(current_year: int = 2025) -> Tuple[Dict[str, Team], Dict[str, Player]]:
     teams = {}
     players = {}
-    
-    # Shuffle names so different players end up on different teams each run
     available_names = NAMES[:]
     random.shuffle(available_names)
-    
-    # Create Teams
+
     for tid, tname in TEAMS:
         teams[tid] = Team(id=tid, name=tname, roster=[], picks=[])
-        
-        # Add future picks
+
         for y in range(current_year, current_year + 7):
             teams[tid].picks.append(DraftPick(y, 1, tid, tid))
             teams[tid].picks.append(DraftPick(y, 2, tid, tid))
-            
-    # Create Players
-    # Distribute defined stars
+
     for tid in teams:
-        # Each team gets 15 players
         roster_size = 15
-        
-        # 1. Assign 2-3 "Real" players from the list per team (Star/Starter)
+
         for _ in range(3):
             if available_names:
                 name = available_names.pop(0)
-                # Determine tier randomly but weighted
                 tier = 'STARTER'
                 if random.random() < 0.3: tier = 'MAX'
                 if random.random() < 0.1: tier = 'SUPERMAX'
@@ -107,8 +93,7 @@ def create_mock_league(current_year: int = 2025) -> Tuple[Dict[str, Team], Dict[
                 )
                 players[pid] = p
                 teams[tid].roster.append(pid)
-        
-        # 2. Fill the rest with generated realistic names
+
         current_roster_count = len(teams[tid].roster)
         missing = roster_size - current_roster_count
         

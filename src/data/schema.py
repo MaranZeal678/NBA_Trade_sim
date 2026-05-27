@@ -7,7 +7,7 @@ class ContractYear:
     season: int
     amount: float
     guaranteed: float
-    option: Optional[str] = None  # 'TEAM', 'PLAYER', 'ETO', 'NONE'
+    option: Optional[str] = None
 
 @dataclass
 class Contract:
@@ -25,7 +25,7 @@ class DraftPick:
     round: int
     owner_id: str
     original_owner_id: str
-    protections: str = "Unprotected"  # e.g., "Top-4 Protected"
+    protections: str = "Unprotected"
 
     def __repr__(self):
         return f"{self.year} Rd{self.round} ({self.original_owner_id})"
@@ -38,14 +38,12 @@ class Player:
     positions: List[str]
     current_team_id: str
     contract: Contract
-    stats: Dict[str, float]  # e.g., {'bpm': 2.5, 'vorp': 1.2, 'ws': 4.5}
-    injury_risk: float = 0.0  # 0 to 1 scale
+    stats: Dict[str, float]
+    injury_risk: float = 0.0
     years_service: int = 0
-    
+
     @property
     def salary_current_year(self) -> float:
-        # Assuming current context year is passed externally or handled by a manager,
-        # but for simple access lets grab the first relevant year or 0
         if self.contract and self.contract.years:
             return self.contract.years[0].amount
         return 0.0
@@ -54,13 +52,12 @@ class Player:
 class Team:
     id: str
     name: str
-    roster: List[str]  # Player IDs
+    roster: List[str]
     picks: List[DraftPick]
-    cap_space: Dict[str, float] = field(default_factory=dict) # {'salary': X, 'tax': Y, 'apron_1': Z}
+    cap_space: Dict[str, float] = field(default_factory=dict)
     record: Dict[str, int] = field(default_factory=lambda: {'w': 0, 'l': 0})
-    strategy: str = "NEUTRAL"  # BUYER, SELLER, HOLD
-    
-    # State tracking
+    strategy: str = "NEUTRAL"
+
     def current_payroll(self, player_map: Dict[str, Player], season: int) -> float:
         total = 0.0
         for pid in self.roster:
